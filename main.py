@@ -7,20 +7,14 @@ from flask import Flask
 from pyrogram import Client, filters
 from pyrogram.types import ChatPermissions
 
-# Load environment variables
+# قراءة المتغيرات من البيئة
 API_ID=24305858
 API_HASH=4373237f13ba03f8c3fd7d245c9f4ef0
 BOT_TOKEN=8153599084:AAEGQfiINI4uEGhwGeIm2cflpyqN7b0Oo94
-LOG_CHANNEL = int(os.getenv("LOG_CHANNEL", 0))  # Optional: ID of a channel for logs
+LOG_CHANNEL = int(os.getenv("LOG_CHANNEL","0"))  # ضع 0 إذا لم تستخدم قناة سجلات
+PORT        = int(os.getenv("PORT",       "8080"))
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-
-# Initialize bot client
+# تهيئة الـ Client والـ Flask بعد ذلك...
 bot = Client(
     name="guardian_bot",
     api_id=API_ID,
@@ -28,17 +22,14 @@ bot = Client(
     bot_token=BOT_TOKEN
 )
 
-# Flask app for keepalive
 app = Flask(__name__)
 @app.route("/")
 def home():
     return "🤖 Bot is running!"
 
 def run_web():
-    port = int(os.getenv("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=PORT)
 
-# Start Flask in a separate thread
 Thread(target=run_web, daemon=True).start()
 
 # In-memory store for warnings: key = (chat_id, user_id)
