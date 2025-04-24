@@ -445,17 +445,26 @@ async def filter_bad_emojis(message):
 @bot.on_message(filters.group & ~filters.service & ~filters.via_bot
                 & (filters.text | filters.caption))
 async def moderate(client, message):
-    # 1. تحقق من الكلمات السيئة
-    if await filter_and_warn(message):
-        return
+    try:
+        # فقط أرسل ردًا بسيطًا وتوقف
+        await message.reply_text(f"تم استقبال رسالة بنجاح!")
+        # سجل في الكونسول للتأكيد
+        logger.info(
+            f"!!! Diagnostic: Received message {message.id} from {message.from_user.id} in chat {message.chat.id}"
+        )
+        await log_action(message.chat.id,
+                         f"!!! Diagnostic: Received message {message.id}"
+                         )  # اختياري: للسجل
+    except Exception as e:
+        logger.error(f"!!! Diagnostic Error in moderate: {e}", exc_info=True)
 
-    # 2. تحقق من الروابط السيئة
-    if await block_links(message):
-        return
-
-    # 3. تحقق من الإيموجيات السيئة (تمت الإضافة)
-    if await filter_bad_emojis(message):
-        return
+    # تأكد من أن الأسطر التالية معلقة (عليها #) أو محذوفة مؤقتًا
+    # if await filter_and_warn(message):
+    #     return
+    # if await block_links(message):
+    #     return
+    # if await filter_bad_emojis(message):
+    #     return
 
 
 # --- معالج الترحيب ---
