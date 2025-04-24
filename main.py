@@ -7,14 +7,14 @@ from flask import Flask
 from pyrogram import Client, filters
 from pyrogram.types import ChatPermissions
 
-# قراءة المتغيرات من البيئة
-API_ID=24305858
-API_HASH=4373237f13ba03f8c3fd7d245c9f4ef0
-BOT_TOKEN=8153599084:AAEGQfiINI4uEGhwGeIm2cflpyqN7b0Oo94
-LOG_CHANNEL = int(os.getenv("LOG_CHANNEL","0"))  # ضع 0 إذا لم تستخدم قناة سجلات
+# ——— قراءة المتغيرات من بيئة التشغيل ———
+API_ID      = int(os.getenv("API_ID",   "0"))
+API_HASH    = os.getenv("API_HASH",      "")
+BOT_TOKEN   = os.getenv("BOT_TOKEN",     "")
+LOG_CHANNEL = int(os.getenv("LOG_CHANNEL","0"))   # ضع 0 إذا لم تستخدم قناة سجلات
 PORT        = int(os.getenv("PORT",       "8080"))
 
-# تهيئة الـ Client والـ Flask بعد ذلك...
+# تهيئة عميل Pyrogram
 bot = Client(
     name="guardian_bot",
     api_id=API_ID,
@@ -22,6 +22,7 @@ bot = Client(
     bot_token=BOT_TOKEN
 )
 
+# إعداد Flask للحفاظ على البوت شغّالاً
 app = Flask(__name__)
 @app.route("/")
 def home():
@@ -31,6 +32,9 @@ def run_web():
     app.run(host="0.0.0.0", port=PORT)
 
 Thread(target=run_web, daemon=True).start()
+
+# … باقي الكود كما لديك: فلترة، أوامر، run_forever() إلخ.
+
 
 # In-memory store for warnings: key = (chat_id, user_id)
 warnings_store = {}
