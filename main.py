@@ -13,9 +13,12 @@ from pyrogram.errors import FloodWait, UserAdminInvalid, ChatAdminRequired
 try:
     API_ID = int(os.getenv("API_ID", "0"))
     API_HASH = os.getenv("API_HASH", "")
-    BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+    BOT_TOKEN = os.getenv(
+        "BOT_TOKEN",
+        "")  # تأكد أن هذا هو التوكن الجديد والصحيح في Replit/Render
     LOG_CHANNEL = int(os.getenv("LOG_CHANNEL", "0"))
-    PORT = int(os.getenv("PORT", "10000"))
+    PORT = int(os.getenv("PORT",
+                         "10000"))  # Render سيوفر القيمة الصحيحة تلقائيًا
 except ValueError:
     logging.error("خطأ: تأكد من أن API_ID و LOG_CHANNEL و PORT أرقام صحيحة.")
     exit(1)
@@ -25,7 +28,8 @@ except Exception as e:
 
 if not all([API_ID, API_HASH, BOT_TOKEN]):
     logging.error(
-        "خطأ: يرجى تعيين متغيرات البيئة API_ID, API_HASH, BOT_TOKEN.")
+        "خطأ: يرجى تعيين متغيرات البيئة API_ID, API_HASH, BOT_TOKEN في Replit Secrets و Render Env Vars."
+    )
     exit(1)
 
 # Configure logging
@@ -36,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize bot client
 try:
+    # استخدام اسم جلسة مميز
     bot = Client(name="guardian_bot_session",
                  api_id=API_ID,
                  api_hash=API_HASH,
@@ -50,11 +55,13 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
+    # هذه الرسالة تظهر عند زيارة رابط Render
     return "🤖 Bot is running!"
 
 
 def run_web():
     try:
+        # الاستماع على كل الواجهات والمنفذ المحدد من Render
         logger.info(f"Starting Flask server on 0.0.0.0:{PORT}")
         app.run(host="0.0.0.0", port=PORT)
     except Exception as e:
@@ -64,7 +71,7 @@ def run_web():
 # --- تخزين التحذيرات (في الذاكرة) ---
 warnings_store = {}
 
-# --- قوائم الحظر (تم ملؤها من قبلك) ---
+# --- قوائم الحظر (مملوءة) ---
 BAD_WORDS = {
     # شتائم عربية ومشتقاتها
     "قذر",
@@ -260,6 +267,7 @@ async def log_action(chat_id, text):
 
 
 async def is_admin(chat_id, user_id):
+    # ... (الكود كما هو - لا تغيير)
     try:
         member = await bot.get_chat_member(chat_id, user_id)
         return member.status in ("creator", "administrator")
@@ -277,20 +285,18 @@ async def is_admin(chat_id, user_id):
 
 
 async def warn_user(message):
+    # ... (الكود كما هو - لا تغيير)
     chat_id = message.chat.id
     user = message.from_user
     if not user: return
-
     key = (chat_id, user.id)
     if await is_admin(chat_id, user.id):
         logger.info(
             f"Ignoring warning for admin {user.mention()} in {chat_id}")
         return
-
     count = warnings_store.get(key, 0) + 1
     warnings_store[key] = count
     mention = user.mention()
-
     try:
         if count == 1:
             await bot.send_message(chat_id,
@@ -327,14 +333,12 @@ async def warn_user(message):
 
 
 async def filter_and_warn(message):
+    # ... (الكود كما هو - لا تغيير)
     if message.from_user and await is_admin(message.chat.id,
                                             message.from_user.id):
         return False
-
     text_to_check = (message.text or message.caption or "").lower()
-    if not text_to_check or not BAD_WORDS:
-        return False
-
+    if not text_to_check or not BAD_WORDS: return False
     for word in BAD_WORDS:
         try:
             if not isinstance(word, str):
@@ -354,25 +358,22 @@ async def filter_and_warn(message):
             logger.error(
                 f"Failed to delete bad word message in {message.chat.id}: Bot lacks delete permission."
             )
-            return False  # توقف إذا لم نتمكن من الحذف
+            return False
         except Exception as e:
             logger.error(f"Error processing bad word '{word}': {e}",
                          exc_info=True)
             continue
-
     return False
 
 
 async def block_links(message):
+    # ... (الكود كما هو - لا تغيير)
     if message.from_user and await is_admin(message.chat.id,
                                             message.from_user.id):
         return False
-
     text_to_check = (message.text or message.caption or "").lower()
-    if not text_to_check or not BAD_DOMAINS:  # تحقق من وجود نطاقات للحظر
-        return False
-
-    link_pattern = r"(https?://|www\.|t\.me/)"  # تحقق من وجود رابط أولاً
+    if not text_to_check or not BAD_DOMAINS: return False
+    link_pattern = r"(https?://|www\.|t\.me/)"
     if re.search(link_pattern, text_to_check, re.IGNORECASE):
         for domain in BAD_DOMAINS:
             try:
@@ -381,8 +382,6 @@ async def block_links(message):
                         f"Skipping non-string item in BAD_DOMAINS: {repr(domain)}"
                     )
                     continue
-                # تحقق مما إذا كان النطاق المحظور موجودًا في النص
-                # لا حاجة لحدود الكلمات (\b) للنطاقات
                 if re.search(re.escape(domain), text_to_check, re.IGNORECASE):
                     await message.delete()
                     await bot.send_message(
@@ -393,58 +392,71 @@ async def block_links(message):
                         message.chat.id,
                         f"Deleted message from {message.from_user.mention()} due to forbidden domain: '{domain}'"
                     )
-                    # await warn_user(message) # يمكنك إضافة تحذير هنا أيضًا
                     return True
             except ChatAdminRequired:
                 logger.error(
                     f"Failed to delete bad link message in {message.chat.id}: Bot lacks delete permission."
                 )
-                return False  # توقف إذا لم نتمكن من الحذف
+                return False
             except Exception as e:
                 logger.error(f"Error processing bad domain '{domain}': {e}",
                              exc_info=True)
                 continue
-
     return False
 
 
-# --- دالة فلترة الإيموجيات (جديدة) ---
 async def filter_bad_emojis(message):
+    # ... (الكود كما هو - لا تغيير)
     if message.from_user and await is_admin(message.chat.id,
                                             message.from_user.id):
         return False
-
     text_to_check = message.text or message.caption or ""
-    if not text_to_check or not BAD_EMOJIS:  # تحقق من وجود إيموجيات للحظر
-        return False
-
+    if not text_to_check or not BAD_EMOJIS: return False
     for emoji in BAD_EMOJIS:
-        if emoji in text_to_check:  # البحث المباشر عن الإيموجي كافٍ
+        if emoji in text_to_check:
             try:
                 await message.delete()
                 await log_action(
                     message.chat.id,
                     f"Deleted message from {message.from_user.mention()} due to forbidden emoji: '{emoji}'"
                 )
-                await warn_user(message)  # تحذير المستخدم
-                return True  # تم العثور والمعالجة
+                await warn_user(message)
+                return True
             except ChatAdminRequired:
                 logger.error(
                     f"Failed to delete bad emoji message in {message.chat.id}: Bot lacks delete permission."
                 )
-                return False  # توقف
+                return False
             except Exception as e:
                 logger.error(f"Error processing bad emoji '{emoji}': {e}",
                              exc_info=True)
-                continue  # انتقل إلى الإيموجي التالي
+                continue
+    return False
 
-    return False  # لم يتم العثور على إيموجي محظور
+
+# --- معالجات الرسائل ---
 
 
-# --- معالج الرسائل الرئيسي ---
+# معالج أمر start في الخاص (مع تسجيل إضافي)
+@bot.on_message(filters.command("start") & filters.private)
+async def cmd_debug_start(client, message):
+    logger.info(f"!!! Received /start command from {message.from_user.id}"
+                )  # <-- تسجيل عند استقبال الأمر
+    try:
+        await message.reply("🟢 Alive!")
+        logger.info(f"!!! Replied to /start from {message.from_user.id}"
+                    )  # <-- تسجيل بعد الرد بنجاح
+    except Exception as e:
+        logger.error(f"!!! Error replying to /start: {e}",
+                     exc_info=True)  # <-- تسجيل أي خطأ يحدث عند الرد
+
+
+# المعالج الرئيسي للمجموعات (لا يزال في الوضع التشخيصي)
 @bot.on_message(filters.group & ~filters.service & ~filters.via_bot
                 & (filters.text | filters.caption))
 async def moderate(client, message):
+    # هذا هو الوضع التشخيصي الحالي الذي أرسلته أنت
+    # سيبقى هكذا حتى نتأكد من أن البوت يستقبل الرسائل أصلاً
     try:
         # فقط أرسل ردًا بسيطًا وتوقف
         await message.reply_text(f"تم استقبال رسالة بنجاح!")
@@ -458,7 +470,7 @@ async def moderate(client, message):
     except Exception as e:
         logger.error(f"!!! Diagnostic Error in moderate: {e}", exc_info=True)
 
-    # تأكد من أن الأسطر التالية معلقة (عليها #) أو محذوفة مؤقتًا
+    # الفلاتر الأصلية لا تزال معلقة للتجربة الحالية:
     # if await filter_and_warn(message):
     #     return
     # if await block_links(message):
@@ -467,9 +479,10 @@ async def moderate(client, message):
     #     return
 
 
-# --- معالج الترحيب ---
+# معالج الترحيب
 @bot.on_message(filters.new_chat_members & filters.group)
 async def welcome(client, message):
+    # ... (الكود كما هو - لا تغيير)
     for member in message.new_chat_members:
         try:
             await message.reply_text(f"👋 مرحباً بك {member.mention()}!")
@@ -484,6 +497,7 @@ async def welcome(client, message):
 # --- أوامر المشرفين ---
 @bot.on_message(filters.command("حظر") & filters.reply & filters.group)
 async def cmd_ban(client, message):
+    # ... (الكود كما هو - لا تغيير)
     if not await is_admin(message.chat.id, message.from_user.id):
         await message.reply_text("ليس لديك صلاحية استخدام هذا الأمر.")
         return
@@ -494,7 +508,6 @@ async def cmd_ban(client, message):
     if await is_admin(message.chat.id, target_user.id):
         return await message.reply_text(
             f"لا يمكنك حظر المشرف {target_user.mention()}.")
-
     try:
         await client.ban_chat_member(message.chat.id, target_user.id)
         await message.reply(f"🚫 تم حظر {target_user.mention()}.")
@@ -511,6 +524,7 @@ async def cmd_ban(client, message):
 
 @bot.on_message(filters.command("طرد") & filters.reply & filters.group)
 async def cmd_kick(client, message):
+    # ... (الكود كما هو - لا تغيير)
     if not await is_admin(message.chat.id, message.from_user.id):
         await message.reply_text("ليس لديك صلاحية استخدام هذا الأمر.")
         return
@@ -521,7 +535,6 @@ async def cmd_kick(client, message):
     if await is_admin(message.chat.id, target_user.id):
         return await message.reply_text(
             f"لا يمكنك طرد المشرف {target_user.mention()}.")
-
     try:
         await client.ban_chat_member(message.chat.id, target_user.id)
         await client.unban_chat_member(message.chat.id, target_user.id)
@@ -548,31 +561,43 @@ async def main():
 
         logger.info("Starting Pyrogram bot...")
         await bot.start()
+        # الحصول على معلومات البوت بعد البدء مباشرة
         bot_info = await bot.get_me()
-        logger.info(f"Bot @{bot_info.username} started successfully!")
-        await log_action(0, f"Bot @{bot_info.username} started!")
+        logger.info(
+            f"Bot @{bot_info.username} (ID: {bot_info.id}) started successfully!"
+        )
+        await log_action(0, f"Bot @{bot_info.username} started!"
+                         )  # chat_id=0 يعني للسجل العام
 
         logger.info("Bot is now idle, waiting for updates...")
-        await idle()
+        await idle()  # إبقاء البوت يعمل وينتظر التحديثات
 
+    # معالجة الأخطاء الفادحة أثناء بدء التشغيل أو التشغيل العام
     except Exception as e:
         logger.critical(f"Critical error during startup or runtime: {e}",
                         exc_info=True)
+    # التنظيف عند إيقاف التشغيل
     finally:
         logger.info("Shutting down...")
-        if 'bot_info' in locals(
-        ) and bot.is_connected:  # تحقق من وجود bot_info قبل استخدامه
-            await log_action(0, f"Bot @{bot_info.username} stopping...")
+        # التأكد من أن bot_info معرف وأن البوت متصل قبل محاولة الإيقاف والتسجيل
+        bot_info_exists = 'bot_info' in locals() or 'bot_info' in globals()
+        if bot.is_connected:
+            if bot_info_exists:
+                await log_action(0, f"Bot @{bot_info.username} stopping...")
+            else:
+                await log_action(0,
+                                 f"Bot stopping (could not get bot_info)...")
             await bot.stop()
-        elif bot.is_connected:
-            await bot.stop()  # أوقف البوت حتى لو لم يتم الحصول على المعلومات
         logger.info("Bot stopped.")
 
 
 if __name__ == "__main__":
     try:
+        # تشغيل الحلقة الرئيسية غير المتزامنة
         asyncio.run(main())
     except KeyboardInterrupt:
+        # معالجة الإيقاف اليدوي (Ctrl+C)
         logger.info("Shutdown requested via KeyboardInterrupt.")
     except Exception as e:
+        # تسجيل أي خطأ فادح يمنع تشغيل asyncio.run
         logger.critical(f"Application failed to run: {e}", exc_info=True)
